@@ -38,13 +38,19 @@
 
 ## benchmarks
 
-> tested on Arch, all scripts may be slower on other distros
+> tested on Arch, all sysfetches may be slower on other distros
 
 | tool                 | time        | comparision     |
 |----------------------|-------------|-----------------|
 | **myfetch (C port)** | 725 ms      | **63x slower**  |
 | **fastfetch**        | 27.7 ms     | **2.4x slower** |
 | **eightfetch**       | **11.5 ms** | **go brr(sorry my humor is bad)** |
+
+> Since i want to be honest, here is how it performed on Pop!_OS:
+| tool                 | time        | comparision     |
+|----------------------|-------------|-----------------|
+| **fastfetch**        | 50.1 ms     | - |
+| **eightfetch**       | **40.5 ms** | **~1.2x faster** |
 
 ```
 $ hyperfine myfetch
