@@ -236,34 +236,9 @@ fn get_cpu(cpuinfo: &str) -> String {
 }
 
 fn read_pci_ids() -> Option<String> {
-    for path in &["/usr/share/hwdata/pci.ids", "/usr/share/misc/pci.ids"] {
-        if let Ok(c) = fs::read_to_string(path) { return Some(c); }
-    }
-    None
-}
-
-fn pci_lookup_in<'a>(vendor: &str, device: &str, content: &'a str) -> Option<&'a str> {
-    let mut in_vendor = false;
-    for line in content.lines() {
-        if line.is_empty() || line.starts_with('#') { continue; }
-        if !line.starts_with('\t') {
-            let parts: Vec<&str> = line.splitn(2, ' ').collect();
-            if parts.len() == 2 && parts[0].eq_ignore_ascii_case(vendor) {
-                in_vendor = true;
-                continue;
-            }
-            in_vendor = false;
-        } else if in_vendor {
-            let rest = line[1..].trim_start();
-            if let Some(dev_id) = rest.splitn(2, ' ').next() {
-                if dev_id.eq_ignore_ascii_case(device) {
-                    return rest.splitn(2, ' ').nth(1)
-                        .map(|n| n.trim().trim_matches('"'));
-                }
-            }
-        }
-    }
-    None
+    fs::read_to_string("/usr/share/hwdata/pci.ids")
+        .or_else(|_| fs::read_to_string("/usr/share/misc/pci.ids"))
+        .ok()
 }
 
 fn clean_gpu_name(name: &str) -> String {
@@ -331,9 +306,38 @@ fn get_gpu_from_sysfs() -> Vec<(String, String)> {
 
     let ids = if gpus.is_empty() { None } else { read_pci_ids() };
 
-    gpus.into_iter().map(|(vid, did, drv)| {
-        let name = ids.as_ref()
-            .and_then(|c| pci_lookup_in(&vid, &did, c))
+    let names = ids.as_ref().map(|c| {
+        let mut names: Vec<Option<&str>> = vec![None; gpus.len()];
+        let mut in_vendor: Option<usize> = None;
+        for line in c.lines() {
+            if line.is_empty() || line.starts_with('#') { continue; }
+            if !line.starts_with('\t') {
+                let parts: Vec<&str> = line.splitn(2, ' ').collect();
+                in_vendor = if parts.len() == 2 {
+                    if parts[0].eq_ignore_ascii_case(&gpus[0].0) { Some(0) }
+                    else if gpus.len() > 1 && parts[0].eq_ignore_ascii_case(&gpus[1].0) { Some(1) }
+                    else { None }
+                } else { None };
+                continue;
+            }
+            if let Some(idx) = in_vendor {
+                if names[idx].is_some() { continue; }
+                let rest = line[1..].trim_start();
+                if let Some(dev_id) = rest.splitn(2, ' ').next() {
+                    if dev_id.eq_ignore_ascii_case(&gpus[idx].1) {
+                        names[idx] = rest.splitn(2, ' ').nth(1)
+                            .map(|n| n.trim().trim_matches('"'));
+                        if names.iter().all(|n| n.is_some()) { return names; }
+                    }
+                }
+            }
+        }
+        names
+    });
+
+    gpus.into_iter().enumerate().map(|(i, (_, _, drv))| {
+        let name = names.as_ref()
+            .and_then(|n| n[i])
             .map(|n| clean_gpu_name(n))
             .unwrap_or_else(|| "Unknown".into());
         (name, drv)
@@ -470,7 +474,7 @@ fn get_wm_de() -> (String, String) {
     }
 
 
-    if wm.is_empty() && env::var("DISPLAY").is_ok() {
+    if wm.is_empty() && env::var("DISPLAY").is_ok() && env::var("WAYLAND_DISPLAY").is_err() {
         let out = cmd_output_sh(
             "xprop -id $(xprop -root _NET_SUPPORTING_WM_CHECK 2>/dev/null | awk '{print $NF}') _NET_WM_NAME 2>/dev/null | grep -oP '(?<=\")[^\"]+(?=\")' | head -1"
         );
@@ -484,7 +488,7 @@ fn get_wm_de() -> (String, String) {
     }
 
 
-    if wm.is_empty() {
+    if wm.is_empty() && env::var("WAYLAND_DISPLAY").is_err() {
         for wm_bin in &["Xorg", "X", "weston", "dwl", "awesome", "bspwm",
                         "herbstluftwm", "openbox", "fluxbox", "jwm", "pekwm",
                         "fvwm", "2bwm", "dwm", "cwm", "qtile", "wmii"] {
@@ -589,11 +593,10 @@ fn count_packages_dir(path: &str) -> usize {
         .unwrap_or(0)
 }
 
-fn count_packages_file(path: &str, suffix: &str) -> usize {
-    let dir = match fs::read_dir(path) { Ok(d) => d, Err(_) => return 0 };
-    dir.flatten().filter(|e| {
-        e.file_name().to_string_lossy().ends_with(suffix)
-    }).count()
+fn count_dpkg_packages() -> usize {
+    fs::read_to_string("/var/lib/dpkg/status").ok()
+        .map(|c| c.lines().filter(|l| l.trim() == "Status: install ok installed").count())
+        .unwrap_or(0)
 }
 
 fn get_packages(arch_based: bool, deb_based: bool) -> String {
@@ -603,7 +606,7 @@ fn get_packages(arch_based: bool, deb_based: bool) -> String {
         let n = count_packages_dir("/var/lib/pacman/local");
         if n > 0 { counts.push(format!("{} (pacman)", n)); }
     } else if deb_based {
-        let n = count_packages_file("/var/lib/dpkg/info", ".list");
+        let n = count_dpkg_packages();
         if n > 0 { counts.push(format!("{} (dpkg)", n)); }
         else {
             let out = cmd_output_sh("dpkg-query -f '${db:Status-Status}' -W 2>/dev/null | grep -c 'installed'");
@@ -618,8 +621,16 @@ fn get_packages(arch_based: bool, deb_based: bool) -> String {
     }
 
     if Path::new("/usr/bin/flatpak").exists() {
-        let out = cmd_output("flatpak", &["list"]);
-        let n = out.lines().filter(|l| !l.is_empty()).count();
+        let mut n = 0usize;
+        for base in &["/var/lib/flatpak"] {
+            n += count_packages_dir(&format!("{}/app", base));
+            n += count_packages_dir(&format!("{}/runtime", base));
+        }
+        if let Ok(home) = env::var("HOME") {
+            let user = format!("{}/.local/share/flatpak", home);
+            n += count_packages_dir(&format!("{}/app", user));
+            n += count_packages_dir(&format!("{}/runtime", user));
+        }
         if n > 0 { counts.push(format!("{} (flatpak)", n)); }
     }
     if Path::new("/usr/bin/snap").exists() {

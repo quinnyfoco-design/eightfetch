@@ -1,6 +1,6 @@
 [package]
 name = "eightfetch"
-version = "1.1.0"
+version = "1.1.1"
 edition = "2021"
 description = "Blazing fast system fetch tool — 63x faster than myfetch (C), 2.4x faster than fastfetch"
 license = "MIT"
