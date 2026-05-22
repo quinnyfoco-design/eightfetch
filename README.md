@@ -42,9 +42,9 @@
 
 | tool                 | time        | comparision     |
 |----------------------|-------------|-----------------|
-| **myfetch (C port)** | 725 ms      | **63x slower**  |
-| **fastfetch**        | 27.7 ms     | **2.4x slower** |
-| **eightfetch**       | **11.5 ms** | **go brr(sorry my humor is bad)** |
+| **myfetch (C port)** | 725.1 ms    | **213.4x slower**  |
+| **fastfetch**        | 27.7 ms     | **8.1x slower** |
+| **eightfetch**       | **3.4 ms** | **go brr(sorry my humor is bad)** |
 
 > Since i want to be honest, here is how it performed on Pop!_OS:
 
@@ -61,10 +61,10 @@ $ hyperfine fastfetch
   Time (mean ± σ):      27.7 ms ±  2.8 ms  [User: 4.3 ms, System: 12.5 ms]
 
 $ hyperfine 8fetch
-  Time (mean ± σ):      11.5 ms ±  1.3 ms  [User: 6.9 ms, System: 4.4 ms]
+  Time (mean ± σ):       3.4 ms ±   2.4 ms    [User: 1.8 ms, System: 2.4 ms]
 ```
 
-eightfetch is **~63x faster** than the original `myfetch(C port)`, and **~2.4x faster** than `fastfetch`; all while using **zero external dependencies** (pure Rust stdlib)!!
+eightfetch is **~213.4x faster** than the original `myfetch(C port)`, and **~8.1x faster** than `fastfetch`; all while using **zero external dependencies** (pure Rust stdlib)!!
 
 ---
 
@@ -93,8 +93,8 @@ cd eightfetch
 cargo build --release
 
 # copy to PATH
-cp target/release/eightfetch ~/.cargo/bin/8fetch
-# or: sudo cp target/release/eightfetch /usr/local/bin/8fetch
+cp target/release/8fetch ~/.cargo/bin/8fetch
+# or: sudo cp target/release/8fetch /usr/local/bin/8fetch
 
 # run it
 8fetch
