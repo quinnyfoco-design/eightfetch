@@ -51,7 +51,7 @@
 | tool                 | time        | comparision     |
 |----------------------|-------------|-----------------|
 | **fastfetch**        | 50.1 ms     | - |
-| **eightfetch**       | **40.5 ms** | **~1.2x faster** |
+| **eightfetch**       | **9.4 ms** | **~5.3x faster** |
 
 ```
 $ hyperfine myfetch
