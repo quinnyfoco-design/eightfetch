@@ -36,7 +36,7 @@
 
 ---
 
-## benchmarks
+## benchmarks(tested on Arch, all scripts may be slower on other distros)
 
 | tool                 | time        | comparision     |
 |----------------------|-------------|-----------------|
