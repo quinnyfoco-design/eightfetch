@@ -6,7 +6,7 @@
     <a href="#-install"><strong>Install</strong></a> ·
     <a href="#-usage"><strong>Usage</strong></a>
   </p>
-  ```
+  <pre>
                    -'                   ╭────────────────────────────────────────╮
                   .o+'                  │ OS: Arch Linux                         │
                  'ooo/                  │ Kernel: Linux 6.18.32-1-lts            │
@@ -26,7 +26,7 @@
   '+sso+:-'                 '.-/+oso:   
  '++:.                           '-/+/  
  .'                                 '   
-  ```
+  </pre>
 </div>
 
 ---
