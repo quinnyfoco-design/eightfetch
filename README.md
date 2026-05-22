@@ -73,7 +73,7 @@ Then run:
 
 ```bash
 # Clone
-git clone https://github.com/YOUR_USER/eightfetch.git
+git clone https://github.com/quinnyfoco-design/eightfetch.git
 cd eightfetch
 
 # Build (optimized release)
